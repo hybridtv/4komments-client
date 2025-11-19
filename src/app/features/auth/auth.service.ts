@@ -139,13 +139,14 @@ export class AuthService {
 
   /**
    * Checks if a JWT token has expired by decoding and comparing the expiry time.
+   * Considers token expired if expiry is more than 60 seconds in the past.
    * @param token - The JWT token to check
    * @returns True if token is expired or invalid, false if valid
    */
   isTokenExpired(token: string): boolean {
     try {
       const expiry = JSON.parse(atob(token.split('.')[1])).exp;
-      return Math.floor(new Date().getTime() / 1000) >= expiry;
+      return Math.floor(new Date().getTime() / 1000) >= expiry + 60; // Add 60 second buffer
     } catch {
       return true;
     }
@@ -169,12 +170,24 @@ export class AuthService {
       return of(null);
     } else {
       const refreshToken = localStorage.getItem('refresh_token');
-      if (refreshToken) {
+      if (refreshToken && this.shouldRefreshToken()) {
         return this.refreshToken();
       } else {
         this.logout();
         return throwError('Not authenticated');
       }
     }
+  }
+
+  /**
+   * Checks if the refresh token should be used (e.g., if access token is expired but refresh token exists and is valid)
+   * @returns True if refresh should be attempted
+   */
+  private shouldRefreshToken(): boolean {
+    const refreshToken = localStorage.getItem('refresh_token');
+    if (!refreshToken) return false;
+    // For now, always try to refresh if refresh token exists and access token is expired
+    // Could add logic to check refresh token expiry if needed
+    return true;
   }
 }
