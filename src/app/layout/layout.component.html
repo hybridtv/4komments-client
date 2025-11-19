@@ -1,0 +1,53 @@
+<nz-layout class="layout">
+  <nz-sider
+    class="sider"
+    nzCollapsible
+    [(nzCollapsed)]="isCollapsed"
+    [nzTrigger]="null"
+    [nzWidth]="200"
+    [nzBreakpoint]="'md'"
+    (nzCollapsedChange)="toggleCollapsed()"
+  >
+    <div class="logo">
+      <h2>4Komments</h2>
+    </div>
+    <ul nz-menu nzTheme="dark" nzMode="inline" class="menu">
+      <li nz-menu-item nzMatchRouter [routerLink]="['/comments']">
+        <span nz-icon nzType="comment"></span>
+        <span>Comments</span>
+      </li>
+      <li nz-menu-item nzMatchRouter [routerLink]="['/users']">
+        <span nz-icon nzType="user"></span>
+        <span>Users</span>
+      </li>
+      <li nz-menu-item nzMatchRouter [routerLink]="['/audits']">
+        <span nz-icon nzType="audit"></span>
+        <span>Audits</span>
+      </li>
+      <li nz-menu-item nzMatchRouter [routerLink]="['/history']">
+        <span nz-icon nzType="history"></span>
+        <span>History</span>
+      </li>
+    </ul>
+  </nz-sider>
+  <nz-layout>
+    <nz-header class="header">
+      <span class="trigger" (click)="toggleCollapsed()">
+        <span nz-icon [nzType]="isCollapsed ? 'menu-unfold' : 'menu-fold'"></span>
+      </span>
+      <div class="user-info">
+        <span>Welcome, {{ currentUser?.username || 'User' }}</span>
+        <button nz-button nzType="text" (click)="logout()">
+          <span nz-icon nzType="logout"></span>
+          Logout
+        </button>
+      </div>
+    </nz-header>
+    <nz-content class="content">
+      <router-outlet></router-outlet>
+    </nz-content>
+    <nz-footer class="footer">
+      4Komments ©{{ new Date().getFullYear() }} Created with Angular & Ant Design
+    </nz-footer>
+  </nz-layout>
+</nz-layout>
