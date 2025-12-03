@@ -47,9 +47,12 @@ describe('AuthService', () => {
     it('should login successfully and set session', () => {
       const credentials: LoginDto = { username: 'test', password: 'pass' };
       const mockResponse = {
-        access_token: 'token',
-        refresh_token: 'refresh',
-        user: { id: 1, username: 'test', name: 'Test User', state: UserStateTypes.ACTIVE }
+        data: {
+          access_token: 'token',
+          refresh_token: 'refresh',
+          user: { id: 1, username: 'test', name: 'Test User', state: UserStateTypes.ACTIVE }
+        },
+        success: true
       };
 
       service.login(credentials).subscribe(response => {
@@ -62,7 +65,7 @@ describe('AuthService', () => {
       req.flush(mockResponse);
 
       expect(stateServiceSpy.setAuthenticated).toHaveBeenCalledWith(true);
-      expect(stateServiceSpy.setCurrentUser).toHaveBeenCalledWith(mockResponse.user);
+      expect(stateServiceSpy.setCurrentUser).toHaveBeenCalledWith(mockResponse.data.user);
     });
 
     it('should handle login error', () => {
@@ -82,10 +85,11 @@ describe('AuthService', () => {
   describe('register', () => {
     it('should register successfully', () => {
       const user: RegisterDto = { username: 'test', password: 'pass' };
-      const mockResponse = { message: 'User registered' };
+      const mockUser: User = { id: 1, username: 'test', name: 'Test User', state: UserStateTypes.ACTIVE };
+      const mockResponse = { data: mockUser, success: true };
 
       service.register(user).subscribe(response => {
-        expect(response).toEqual(mockResponse);
+        expect(response).toEqual(mockUser);
       });
 
       const req = httpMock.expectOne(`${environment.apiUrl}/auth/register`);
@@ -126,10 +130,11 @@ describe('AuthService', () => {
     it('should refresh token successfully', () => {
       const refreshToken = 'refresh_token';
       spyOn(localStorage, 'getItem').and.returnValue(refreshToken);
-      const mockResponse = { access_token: 'new_token', refresh_token: 'new_refresh' };
+      const tokens = { access_token: 'new_token', refresh_token: 'new_refresh' };
+      const mockResponse = { data: tokens, success: true };
 
       service.refreshToken().subscribe(response => {
-        expect(response).toEqual(mockResponse);
+        expect(response).toEqual(tokens);
       });
 
       const req = httpMock.expectOne(`${environment.apiUrl}/auth/refresh-token`);

@@ -42,7 +42,7 @@ describe('CommentService', () => {
 
       const req = httpMock.expectOne(`${environment.apiUrl}/comments`);
       expect(req.request.method).toBe('GET');
-      req.flush(mockComments);
+      req.flush({ data: mockComments, success: true });
     });
 
     it('should handle error', () => {
@@ -75,7 +75,7 @@ describe('CommentService', () => {
       const req = httpMock.expectOne(`${environment.apiUrl}/comments`);
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toEqual(commentDto);
-      req.flush(mockComment);
+      req.flush({ data: mockComment, success: true });
     });
 
     it('should handle error', () => {
@@ -111,7 +111,7 @@ describe('CommentService', () => {
       const req = httpMock.expectOne(`${environment.apiUrl}/comments/${id}/state`);
       expect(req.request.method).toBe('PATCH');
       expect(req.request.body).toEqual(stateDto);
-      req.flush(mockComment);
+      req.flush({ data: mockComment, success: true });
     });
 
     it('should handle error', () => {
@@ -138,7 +138,7 @@ describe('CommentService', () => {
 
       const req = httpMock.expectOne(`${environment.apiUrl}/comments/${id}`);
       expect(req.request.method).toBe('DELETE');
-      req.flush(null);
+      req.flush({ data: undefined, success: true });
     });
 
     it('should handle error', () => {

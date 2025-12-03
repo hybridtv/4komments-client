@@ -8,6 +8,8 @@ import { AuthService } from './auth.service';
 import { StateService } from '../../shared/services/state.service';
 import { NotificationService } from '../../shared/services/notification.service';
 import { ErrorHandlerService } from '../../shared/services/error-handler.service';
+import { User } from '../../models/user.model';
+import { UserStateTypes } from '../../models/states.enum';
 
 describe('LoginComponent', () => {
   let component: LoginComponent;
@@ -73,7 +75,8 @@ describe('LoginComponent', () => {
   describe('Login functionality', () => {
     it('should call authService.login on valid form submission', () => {
       const credentials = { username: 'test', password: 'pass' };
-      authServiceSpy.login.and.returnValue(of({}));
+      const mockResponse = { data: { access_token: 'token', refresh_token: 'refresh', user: { id: 1, username: 'test', name: 'Test', state: 'ACTIVE' } }, success: true };
+      authServiceSpy.login.and.returnValue(of(mockResponse));
       component.loginForm.setValue(credentials);
 
       component.onLogin();
@@ -83,7 +86,8 @@ describe('LoginComponent', () => {
     });
 
     it('should navigate to comments and show success message on login success', () => {
-      authServiceSpy.login.and.returnValue(of({}));
+      const mockResponse = { data: { access_token: 'token', refresh_token: 'refresh', user: { id: 1, username: 'test', name: 'Test', state: 'ACTIVE' } }, success: true };
+      authServiceSpy.login.and.returnValue(of(mockResponse));
       component.loginForm.setValue({ username: 'test', password: 'pass' });
 
       component.onLogin();
@@ -116,7 +120,8 @@ describe('LoginComponent', () => {
   describe('Register functionality', () => {
     it('should call authService.register on valid form submission', () => {
       const user = { username: 'test', password: 'pass', name: 'Test User' };
-      authServiceSpy.register.and.returnValue(of({}));
+      const mockUser: User = { id: 1, username: 'test', name: 'Test User', state: UserStateTypes.ACTIVE };
+      authServiceSpy.register.and.returnValue(of(mockUser));
       component.registerForm.setValue(user);
 
       component.onRegister();
@@ -126,7 +131,8 @@ describe('LoginComponent', () => {
     });
 
     it('should show success message and reset form on register success', () => {
-      authServiceSpy.register.and.returnValue(of({}));
+      const mockUser: User = { id: 1, username: 'test', name: 'Test', state: UserStateTypes.ACTIVE };
+      authServiceSpy.register.and.returnValue(of(mockUser));
       component.registerForm.setValue({ username: 'test', password: 'pass', name: 'Test' });
 
       component.onRegister();

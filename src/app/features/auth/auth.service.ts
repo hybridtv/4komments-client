@@ -2,13 +2,14 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { BehaviorSubject, Observable, throwError, of } from 'rxjs';
-import { tap, catchError, switchMap } from 'rxjs/operators';
+import { tap, catchError, switchMap, map } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
-import { LoginDto } from '../../models/login.dto';
+import { LoginDto, LoginResponseDto } from '../../models/login.dto';
 import { RegisterDto } from '../../models/register.dto';
 import { RefreshTokenDto } from '../../models/refresh-token.dto';
 import { User } from '../../models/user.model';
 import { StateService } from '../../shared/services/state.service';
+import ApiResponse from '../../models/api-response.model';
 
 /**
  * Service responsible for handling authentication-related operations.
@@ -32,10 +33,13 @@ export class AuthService {
   private stateService = inject(StateService);
 
   /** BehaviorSubject holding the current authenticated user */
-  private userSubject = new BehaviorSubject<User | null>(null);
+  private userSubject = new BehaviorSubject<LoginResponseDto | null>(null);
 
   /** Observable stream of the current user state */
   public user$ = this.userSubject.asObservable();
+
+  /** Flag to prevent multiple simultaneous refresh attempts */
+  private isRefreshing = false;
 
   /**
    * Constructor - initializes the service and checks for existing valid tokens.
@@ -54,15 +58,16 @@ export class AuthService {
    * @param credentials - The login credentials (username and password)
    * @returns Observable of the login response containing tokens and user data
    */
-  login(credentials: LoginDto): Observable<any> {
-    return this.http.post(`${this.apiUrl}/auth/login`, credentials).pipe(
-      tap((response: any) => {
-        this.setSession(response);
-        this.userSubject.next(response.user);
+  login(credentials: LoginDto): Observable<ApiResponse<any>> {
+    return this.http.post<ApiResponse<any>>(`${this.apiUrl}/auth/login`, credentials).pipe(
+      tap((response: ApiResponse<LoginResponseDto>) => {
+        console.log(response);
+        this.setSession(response.data);
+        this.userSubject.next(response.data);
         this.stateService.setAuthenticated(true);
-        this.stateService.setCurrentUser(response.user);
+        this.stateService.setCurrentUser(response.data);
       }),
-      catchError(error => throwError(error))
+      catchError(error => throwError(() => error))
     );
   }
 
@@ -71,9 +76,10 @@ export class AuthService {
    * @param user - The registration data (username, password, optional name)
    * @returns Observable of the registration response
    */
-  register(user: RegisterDto): Observable<any> {
-    return this.http.post(`${this.apiUrl}/auth/register`, user).pipe(
-      catchError(error => throwError(error))
+  register(user: RegisterDto): Observable<User> {
+    return this.http.post<ApiResponse<User>>(`${this.apiUrl}/auth/register`, user).pipe(
+      map(response => response.data),
+      catchError(error => throwError(() => error))
     );
   }
 
@@ -96,17 +102,24 @@ export class AuthService {
    * @returns Observable of the token refresh response
    */
   refreshToken(): Observable<any> {
+    if (this.isRefreshing) {
+      return throwError(() => 'Refresh already in progress');
+    }
     const refreshToken = localStorage.getItem('refresh_token');
     if (!refreshToken) {
-      return throwError('No refresh token available');
+      return throwError(() => 'No refresh token available');
     }
-    return this.http.post(`${this.apiUrl}/auth/refresh-token`, { refreshToken } as RefreshTokenDto).pipe(
-      tap((response: any) => {
-        this.setSession(response);
+    this.isRefreshing = true;
+    return this.http.post<ApiResponse<any>>(`${this.apiUrl}/auth/refresh-token`, { refresh_token: refreshToken }).pipe(
+      map(response => response.data),
+      tap((tokens: any) => {
+        this.setSession(tokens);
+        this.isRefreshing = false;
       }),
       catchError(error => {
+        this.isRefreshing = false;
         this.logout();
-        return throwError(error);
+        return throwError(() => error);
       })
     );
   }
@@ -115,9 +128,9 @@ export class AuthService {
    * Stores the authentication tokens in localStorage.
    * @param authResult - The authentication response containing access and refresh tokens
    */
-  private setSession(authResult: any): void {
-    localStorage.setItem('access_token', authResult.access_token);
-    localStorage.setItem('refresh_token', authResult.refresh_token);
+  private setSession(authResult: LoginResponseDto): void {
+    localStorage.setItem('access_token', authResult.accessToken);
+    localStorage.setItem('refresh_token', authResult.refreshToken);
   }
 
   /**
@@ -138,6 +151,14 @@ export class AuthService {
   }
 
   /**
+   * Checks if a token refresh is currently in progress.
+   * @returns True if refresh is in progress, false otherwise
+   */
+  isRefreshInProgress(): boolean {
+    return this.isRefreshing;
+  }
+
+  /**
    * Checks if a JWT token has expired by decoding and comparing the expiry time.
    * Considers token expired if expiry is more than 60 seconds in the past.
    * @param token - The JWT token to check
@@ -146,7 +167,7 @@ export class AuthService {
   isTokenExpired(token: string): boolean {
     try {
       const expiry = JSON.parse(atob(token.split('.')[1])).exp;
-      return Math.floor(new Date().getTime() / 1000) >= expiry + 60; // Add 60 second buffer
+      return Math.floor(new Date().getTime() / 1000) >= expiry + 5; // 5 second buffer for clock skew
     } catch {
       return true;
     }
@@ -169,12 +190,11 @@ export class AuthService {
     if (this.isLoggedIn()) {
       return of(null);
     } else {
-      const refreshToken = localStorage.getItem('refresh_token');
-      if (refreshToken && this.shouldRefreshToken()) {
+      if (this.shouldRefreshToken()) {
         return this.refreshToken();
       } else {
         this.logout();
-        return throwError('Not authenticated');
+        return throwError(() => 'Not authenticated');
       }
     }
   }
